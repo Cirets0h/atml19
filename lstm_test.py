@@ -1,24 +1,15 @@
-from __future__ import print_function
-from __future__ import division
 import torch
 
 from torch.utils.data import Dataset
-
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-
-import torch
 import torch.nn as nn
-import torch.optim as optim
 from torch.optim.lr_scheduler import StepLR
-import numpy as np
 import torchvision
-from torchvision import datasets, models, transforms
-import matplotlib.pyplot as plt
+from torchvision import datasets
 import time
-import os
 import copy
-import math
+
+from lr_finder import *
+from helper import *
 
 print("PyTorch Version: ",torch.__version__)
 print("Torchvision Version: ",torchvision.__version__)
@@ -74,6 +65,7 @@ dataloaders_dict['val'] = val_dataloader
 class RNN(nn.Module):
     def __init__(self, hidden_size=256, lstm_layers=2, cnn_start_channels=256):
         super(RNN, self).__init__()
+        self.name = "CNN({})_LSTM({}_hidden_{})".format(cnn_start_channels, lstm_layers, cnn_start_channels)
 
         self.conv_layers = nn.Sequential(
             # input.size: 16x176400
@@ -96,9 +88,13 @@ class RNN(nn.Module):
             # output: 256 x 175
         )
 
-        self.lstm = nn.LSTM(input_size=4*cnn_start_channels,
+        self.rnn = nn.LSTM(input_size=4*cnn_start_channels,
                             hidden_size=hidden_size, dropout=0.2,
                             num_layers=lstm_layers)
+
+        #self.rnn = nn.GRU(input_size=4*cnn_start_channels,
+        #                    hidden_size=hidden_size, dropout=0.2,
+        #                    num_layers=lstm_layers)
 
         self.fc = nn.Linear(hidden_size, 10)
 
@@ -108,11 +104,14 @@ class RNN(nn.Module):
         output = output.transpose(1, 2).transpose(0, 1)
 
         output = torch.tanh(output)
-        output, hidden = self.lstm(output, hidden)
+        output, hidden = self.rnn(output, hidden)
 
         output = self.fc(output[-1, :, :])
 
         return output, hidden
+
+    def get_name(self):
+        return self.name
 
 
 def train_model(model, dataloaders, criterion, optimizer, scheduler=None, num_epochs=25):
@@ -126,6 +125,7 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler=None, num_ep
 
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
+    best_epoch = 0
 
     for epoch in range(num_epochs):
         print('Epoch {}/{}'.format(epoch, num_epochs - 1))
@@ -165,6 +165,7 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler=None, num_ep
 
             if phase == 'val' and epoch_acc > best_acc:
                 best_acc = epoch_acc
+                best_epoch = epoch
                 best_model_wts = copy.deepcopy(model.state_dict())
             if phase == 'val':
                 val_acc_history.append(epoch_acc)
@@ -183,36 +184,31 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler=None, num_ep
     print('Best val Acc: {:4f}'.format(best_acc))
 
     model.load_state_dict(best_model_wts)
-    return model, val_acc_history
+    return model, best_epoch, (train_loss_history, val_loss_history, train_acc_history, val_acc_history)
 
 model = RNN()
-
 model = model.to(device)
 
-def cyclical_lr(stepsize, min_lr=3e-2, max_lr=3e-3):
 
-    # Scaler: we can adapt this if we do not want the triangular CLR
-    scaler = lambda x: 1.
-
-    # Lambda function to calculate the LR
-    lr_lambda = lambda it: min_lr + (max_lr - min_lr) * relative(it, stepsize)
-
-    # Additional function to see where on the cycle we are
-    def relative(it, stepsize):
-        cycle = math.floor(1 + it / (2 * stepsize))
-        x = abs(it / stepsize - 2 * cycle + 1)
-        return max(0, (1 - x)) * scaler(cycle)
-
-    return lr_lambda
-
-#optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.005)
-#optimizer = torch.optim.SGD(model.parameters(), lr=1.)
-#step_size = 4*len(train_dataloader)
-#clr = cyclical_lr(step_size)
-#scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, [clr])
-
 scheduler = StepLR(optimizer, step_size=10, gamma=0.5)
 criterion = nn.CrossEntropyLoss()
 
-model, hist = train_model(model, dataloaders_dict, criterion, optimizer, scheduler=scheduler, num_epochs=num_epochs)
+
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-7, weight_decay=1e-2)
+lr_finder = LRFinder(model, optimizer, criterion, device=device)
+lr_finder.range_test(dataloaders_dict['train'], end_lr=100, num_iter=100, step_mode="exp")
+
+#model, best_epoch, hist = train_model(model, dataloaders_dict, criterion, optimizer, scheduler=scheduler, num_epochs=num_epochs)
+
+
+#model_filepath = './saved_models/{}_{:.0f}'.format(model.get_name(), 100*hist[3][best_epoch])
+
+#plot_train_history(len(hist[0]), model_filepath, *hist)
+
+#torch.save({
+#    'epoch': best_epoch,
+#    'model_state_dict': model.state_dict(),
+#    'optimizer_state_dict': optimizer.state_dict(),
+#    'loss': hist[1][best_epoch]
+#}, model_filepath)
