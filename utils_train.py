@@ -7,11 +7,12 @@ def train(model, train_loader, optimizer, loss_fn, print_every=100):
     '''
     Trains the model for one epoch
     '''
-    model.train()
-    losses = []
     n_correct = 0
-    for iteration, (images, labels) in enumerate(train_loader):
+    losses = []
+    model.to(device=device)
+    model.train()
 
+    for iteration, (images, labels) in enumerate(train_loader):
         images = images.to(device=device)
         labels = labels.to(device=device)
         output = model(images)
@@ -51,7 +52,7 @@ def test(model, test_loader, loss_fn):
 def fit(train_dataloader, val_dataloader, model, optimizer, loss_fn, n_epochs, scheduler=None):
     train_losses, train_accuracies = [], []
     val_losses, val_accuracies = [], []
-
+    learning_rates = []
     for epoch in range(n_epochs):
         train_loss, train_accuracy = train(model, train_dataloader, optimizer, loss_fn)
         val_loss, val_accuracy = test(model, val_dataloader, loss_fn)
@@ -59,6 +60,9 @@ def fit(train_dataloader, val_dataloader, model, optimizer, loss_fn, n_epochs, s
         train_accuracies.append(train_accuracy)
         val_losses.append(val_loss)
         val_accuracies.append(val_accuracy)
+        # We'll monitor learning rate -- just to show that it's decreasing
+        learning_rates.append(optimizer.param_groups[0]['lr'])
+        ########## Notify a scheduler that an epoch passed
         if scheduler:
             scheduler.step() # argument only needed for ReduceLROnPlateau
         print('Epoch {}/{}: train_loss: {:.4f}, train_accuracy: {:.4f}, val_loss: {:.4f}, val_accuracy: {:.4f}'.format(epoch+1, n_epochs,
@@ -66,5 +70,6 @@ def fit(train_dataloader, val_dataloader, model, optimizer, loss_fn, n_epochs, s
                                                                                                           train_accuracies[-1],
                                                                                                           val_losses[-1],
                                                                                                           val_accuracies[-1]))
-    
-    return train_losses, train_accuracies, val_losses, val_accuracies
+
+    print(learning_rates)
+    return train_losses, train_accuracies, val_losses, val_accuracies, learning_rates
