@@ -4,6 +4,26 @@ import matplotlib.pyplot as plt
 import numpy as np
 import itertools
 
+def plot_train_history(n_epochs, filename, train_losses, val_losses, train_accuracies, val_accuracies):
+    plt.figure()
+    plt.plot(np.arange(n_epochs), train_losses)
+    plt.plot(np.arange(n_epochs), val_losses)
+    plt.legend(['train_loss', 'val_loss'])
+    plt.xlabel('epoch')
+    plt.ylabel('loss value')
+    plt.title('Train/val loss');
+    plt.savefig(filename + "_loss.png")
+
+    plt.figure()
+    plt.plot(np.arange(n_epochs), train_accuracies)
+    plt.plot(np.arange(n_epochs), val_accuracies)
+    plt.legend(['train_acc', 'val_acc'])
+    plt.xlabel('epoch')
+    plt.ylabel('accuracy')
+    plt.title('Train/val accuracy')
+    plt.savefig(filename + "_accuracy.png")
+
+
 def plot_confusion_matrix(cm,
                           target_names,
                           title='Confusion matrix',

@@ -1,0 +1,13 @@
+numpy
+matplotlib
+librosa
+pandas
+torch
+torchvision
+sklearn
+ipywidgets
+pytorch-ignite
+tqdm
+visdom
+future
+tb-nightly
