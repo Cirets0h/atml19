@@ -9,3 +9,7 @@ The respresentations in question are mainly Mel-spectograms, the raw audio data 
 Relevant Papers:
 * Audio Classification of Bit-Representation Waveform(https://arxiv.org/abs/1904.04364)
 * CNN Architectures for large-scale audio classification(https://arxiv.org/pdf/1609.09430v2.pdf)
+
+Similar efforts:
+* https://github.com/mikesmales/Udacity-ML-Capstone
+* https://www.kaggle.com/devilsknight/sound-classification-using-spectrogram-images
