@@ -15,6 +15,7 @@ def train(model, train_loader, optimizer, loss_fn, print_every=100):
     for iteration, (images, labels) in enumerate(train_loader):
         images = images.to(device=device)
         labels = labels.to(device=device)
+        labels = labels.squeeze_()
         output = model(images)
         optimizer.zero_grad()
         loss = loss_fn(output, labels)
@@ -24,7 +25,7 @@ def train(model, train_loader, optimizer, loss_fn, print_every=100):
 #             print('Training iteration {}: loss {:.4f}'.format(iteration, loss.item()))
         losses.append(loss.item())
         n_correct += torch.sum(output.argmax(1) == labels).item()
-    accuracy = 100.0 * n_correct / len(train_loader.data_set)
+    accuracy = 100.0 * n_correct / len(train_loader.dataset)
     return np.mean(np.array(losses)), accuracy
             
 def test(model, test_loader, loss_fn):
@@ -38,13 +39,14 @@ def test(model, test_loader, loss_fn):
         for images, labels in test_loader:
             images = images.to(device)
             labels = labels.to(device)
+            labels = labels.squeeze_()
             output = model(images)
             loss = loss_fn(output, labels)
             test_loss += loss.item()
             n_correct += torch.sum(output.argmax(1) == labels).item()
 
     average_loss = test_loss / len(test_loader)
-    accuracy = 100.0 * n_correct / len(test_loader.data_set)
+    accuracy = 100.0 * n_correct / len(test_loader.dataset)
 #     print('Test average loss: {:.4f}, accuracy: {:.3f}'.format(average_loss, accuracy))
     return average_loss, accuracy
 
